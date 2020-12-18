@@ -3,12 +3,18 @@ import sys                      # 更改编码UTF8
 import requests                 # 请求网页
 import json                     # 保存为JSON
 # import pandas as pd           # 如果用DataFrame
-import xlsxwriter               # 如果用XlsxWriter
 from bs4 import BeautifulSoup   # 解析网页
 # import lxml                   # LXML Parser
+import xlsxwriter               # 如果用XlsxWriter
 import openpyxl
 # from openpyxl import Workbook   
 from openpyxl.utils import get_column_letter # 设置Excel行款列宽用
+
+import smtplib
+from email.header import Header
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 
 PATH = 'src/demo_16'
 URL_BASE = 'http://www.ajztb.com'
@@ -92,6 +98,59 @@ class Date:
                 self = Date(self.year-1, 12, 31)
         return self
 
+# ========
+# Mail utilities
+PATH = 'src/demo_16'
+HOST = {
+    'server'    : 'smtp.163.com',
+    'account'   : 'suowei_h_temp@163.com', #myTempMai willBeDeactivated
+    'password'  : 'JUIFZIYOWSJFQYIG'       #husuowei200029
+}
+MAIL = {
+    'sender'    : 'suowei_h_temp@163.com',
+    'receivers' : ['suowei.h@icloud.com', 'blueprotein@163.com'],
+    'title'     : 'TEST - 爬到新信息',
+    'message'   : '爬到如下新信息:\n',
+    'data'      : '\t xxxx, yyyyy, zzzz \n' * 10 
+}
+
+# =========
+# Send mail
+def sendEmail163(data=MAIL['data'],atts=['result.xlsx']):
+    mail_host = HOST['server']                     # SMTP服务器(这里用的163)
+    mail_user = HOST['account']                    # 用户名（这里用的临时邮箱，很可能会注销吊）
+    mail_pass = HOST['password']                   # 授权码（密码hu****029）
+    sender    = MAIL['sender']                     # 发件人邮箱
+    receivers = MAIL['receivers']                  # 接收邮件列表
+    title     = MAIL['title']                      # 邮件主题
+    content   = MAIL['message'] + data             # 邮件内容
+
+    message = MIMEMultipart()
+    msg_con = MIMEText(content) 
+
+    message['From'] = "{}".format(sender)
+    message['To'] = ",".join(receivers)
+    message['Subject'] = title
+    message.attach(msg_con)
+    message["Accept-Language"]="zh-CN" # 设置消息为中文
+    message["Accept-Charset"]="utf-8"  # 指定编码
+
+    for att_name in atts:              # 添加附件
+        file_type = 'excel'
+        att1 = MIMEText(open(att_name, 'rb').read(), 'base64', 'utf-8')
+        att1["Content-Type"] = 'application/octet-stream'
+        att1["Content-Disposition"] = 'attachment; filename=' + att_name
+        message.attach(att1)               
+ 
+    try:
+        smtpObj = smtplib.SMTP_SSL(mail_host, 465)  # 启用SSL发信, 端口一般是465
+        smtpObj.login(mail_user, mail_pass)         # 登录验证 163 邮箱
+        smtpObj.sendmail(sender, receivers, message.as_string())# 发送
+        print("mail has been send successfully.")
+
+    except smtplib.SMTPException as e:
+        print(e)
+
 # ===========
 # File I/O Utilities
 
@@ -114,6 +173,11 @@ def save_toExcel(text,path=PATH+'/result.xlsx',wk_sheet="main"):
     if(wk_sheet in workbook.sheetnames): 
         ws = workbook[wk_sheet]
         workbook.remove(ws)
+    
+    if('Placeholder' in workbook.sheetnames): 
+        ws = workbook['Placeholder']
+        workbook.remove(ws)
+    
     worksheet = workbook.create_sheet(wk_sheet)
     worksheet.column_dimensions['A'].width = 30
     worksheet.column_dimensions['B'].width = 120
@@ -136,6 +200,25 @@ def save_toExcel(text,path=PATH+'/result.xlsx',wk_sheet="main"):
     
     # close work book
     workbook.save(path)
+
+def clear_Excel(path, placeholder="Placeholder"):
+
+    workbook  = xlsxwriter.Workbook(path)
+    worksheet = workbook.add_worksheet(placeholder)
+    workbook.close()
+
+    # workbook = openpyxl.load_workbook(path)
+    # print("=" * 100)
+    # workbook.create_sheet(placeholder)
+    
+
+    # for wk_sheet in workbook.sheetnames: 
+    #     ws = workbook[wk_sheet]
+    #     workbook.remove(ws)
+
+    # workbook.save(path)
+
+    return
 
 def save_toExcel_Jyxx_list(text_list,wk_sheet="main",path=PATH+'/result.xlsx'):
     text = []
@@ -348,6 +431,11 @@ def getPageDate_toExcel_crossCheck(date_from, date_to):
     dict_diff     = {}              # 字典 - 不同
     for date in date_s:
         d_str = date.toString()                  # date that gets checked 
+        if(not(date.toString() in list(dict_existing.keys()))):
+            found_diff = True
+            dict_diff[d_str] = dict_new[d_str]
+            dict_existing[d_str] = dict_new[d_str]
+            continue 
         list_exist = dict_existing[d_str]
         list_new   = dict_new[d_str]
         dict_existing[d_str] =  list_new         # update new existing (will be added to json file)
@@ -359,10 +447,21 @@ def getPageDate_toExcel_crossCheck(date_from, date_to):
 
     # Notify if required to do so
     if(found_diff):
+        clear_Excel(PATH + '/new_data.xlsx')
+        save_toExcel_Jyxx_dict(dict_diff, PATH + '/new_data.xlsx')
         
-    
-    print(dict_diff)
-    print(found_diff)
+        msg = "\n"
+        for i in list(dict_diff.keys()):
+            msg += "\t" + i + "\n"
+            for j in dict_diff[i]:
+                msg += "\t\t-" + j['title'] + '\n'
+                msg += "\t\t " + j['link'] + '\n'
+
+        sendEmail163(msg, [PATH + '/new_data.xlsx', PATH + '/result.xlsx'])
+        
+        print("Sent Mail:\n"+msg)
+        # print(dict_diff)
+        # print(found_diff)
 
     return
 
