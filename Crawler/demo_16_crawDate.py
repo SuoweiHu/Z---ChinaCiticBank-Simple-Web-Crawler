@@ -108,7 +108,7 @@ HOST = {
 }
 MAIL = {
     'sender'    : 'suowei_h_temp@163.com',
-    'receivers' : ['suowei.h@icloud.com', 'blueprotein@163.com'],
+    'receivers' : ['suowei.h@icloud.com'],
     'title'     : 'TEST - 爬到新信息',
     'message'   : '爬到如下新信息:\n',
     'data'      : '\t xxxx, yyyyy, zzzz \n' * 10 
