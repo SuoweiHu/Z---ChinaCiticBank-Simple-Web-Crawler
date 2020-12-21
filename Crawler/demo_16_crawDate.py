@@ -104,7 +104,7 @@ PATH = 'src/demo_16'
 HOST = {
     'server'    : 'smtp.163.com',
     'account'   : 'suowei_h_temp@163.com', #myTempMai willBeDeactivated
-    'password'  : 'JUIFZIYOWSJFQYIG'       #husuowei200029
+    'password'  : 'JUIFZIYOWSJFQYIG'       
 }
 MAIL = {
     'sender'    : 'suowei_h_temp@163.com',
