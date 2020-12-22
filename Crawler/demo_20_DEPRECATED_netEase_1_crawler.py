@@ -15,6 +15,20 @@ from requests_testadapter import Resp                   # 读取本地HTML文件
 # from selenium.webdriver.phantomjs.options import Options  # PhantomJS自动化无界面浏览器
 import pprint
 
+__driver__ = None
+
+def start(headless=True):
+    # 使用webdriver打开一个浏览器instance
+    __driver__ = driver_factory (headless = headless)       # 无界面？(Headless) 
+    return
+
+def close():
+    # 退出浏览器，释放资源为其他活动
+    # __driver__.close()    # 关闭当前页面（因为这里只有一页所以也会推出浏览器）
+    __driver__.quit()       # 退出webdriver驱动
+    __driver__ = None
+    return
+
 class LocalFileAdapter(requests.adapters.HTTPAdapter):
     def build_response_from_file(self, request):
         file_path = request.url[7:]
@@ -433,24 +447,10 @@ def demo():
 #     # __driver__.close()    # 关闭当前页面（因为这里只有一页所以也会推出浏览器）
 #     __driver__.quit()       # 退出webdriver驱动
 
-x = "123"
+class Craw:
 
-class NetEase_Crawler():
-    driver = None 
-    def __init__(self):
-        return
-    def start(self):
-        self.driver = driver_factory(headless = True)
-        return
     def craw_user(self, uid):
         html_user = craw_userPage(uid) 
         parsed_user = parse_userPage(html_user, recursive=True,recur_limit=sys.maxsize)
         return parsed_user
-
-    def test(self):
-        print("FK")
-    
-    def end(self):  
-        self.driver.close()
-        self.driver.quit()
 
